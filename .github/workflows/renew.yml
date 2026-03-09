@@ -17,35 +17,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 🛡️ 启动 Gost 代理转发 (可选)
-        env:
-          GOST_PROXY_TARGET: ${{ secrets.GOST_PROXY_TARGET }}
-        run: |
-          if [ -z "$GOST_PROXY_TARGET" ]; then
-            echo "USE_PROXY=false" >> $GITHUB_ENV
-          else
-            wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
-            gunzip gost-linux-amd64-2.11.5.gz
-            chmod +x gost-linux-amd64-2.11.5
-            mv gost-linux-amd64-2.11.5 gost
-            nohup ./gost -L http://:8080 -F $GOST_PROXY_TARGET > /dev/null 2>&1 &
-            sleep 3
-            echo "USE_PROXY=true" >> $GITHUB_ENV
-          fi
-
-      - name: 🛠️ 安装系统依赖
+      - name: 🛠️ 安装环境
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk
-
-      - name: 🐍 安装 Python 依赖
-        run: |
+          sudo apt-get install -y xvfb x11-utils xdotool fonts-noto-cjk
           pip install seleniumbase requests
           seleniumbase install chromedriver
 
-      - name: 🚀 运行续期脚本
+      - name: 🚀 运行脚本
         env:
-          # 对接你指定的 6 个环境变量
+          # 严格映射你指定的 6 个变量
           EML_1: ${{ secrets.EML_1 }}
           PWD_1: ${{ secrets.PWD_1 }}
           EML_2: ${{ secrets.EML_2 }}
@@ -55,10 +36,3 @@ jobs:
         run: |
           xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
             python reset_timer.py
-
-      - name: 📸 上传调试截图
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-screenshots
-          path: "*.png"
