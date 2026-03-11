@@ -29,7 +29,7 @@
 - 🎭 隔离执行：矩阵 (Matrix) 技术确保各账号独立运行，互不干扰。
 - 🖱️ 物理模拟：Xvfb 虚拟桌面 + 鼠标轨迹模拟，强力穿透 CF 验证。
 - 🎲 随机巡航：0-2 小时随机启动延迟，彻底打破固定运行规律。
-- 🌐 代理支持：自动解析 PROXY_URL 生成 sing-box 本地代理，支持 socks5/http/https/vless/vmess/hy2/tuic 等明文或base64编码协议。
+- 🌐 代理支持：自动解析 PROXY_URL 生成 sing-box 本地代理，支持 socks5/http/https/vless/vmess/hy2/tuic 等**明文**或**base64编码**协议。
 
 【 ⚠️ 调试与报错 】
 若 Actions 运行失败，请在当前任务页面的底端 [Artifacts] 区域
@@ -40,4 +40,4 @@
 ## 【 🌟 特别鸣谢 】
 本项目核心续期逻辑参考并使用了👉[https://github.com/mangguo88/JustRunMy-Renew](https://github.com/mangguo88/JustRunMy-Renew)
 
-在此特别感谢 mangguo88 提供的稳定物理模拟续期算法和proxy代理观念。
+在此特别感谢 mangguo88 提供的稳定物理模拟续期算法和proxy代理想法。
