@@ -76,20 +76,19 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: ⏳ 等待执行窗口 (相对触发时间)
+    - name: ⏳ 等待基础窗口 (只有第一个账号实际等待)
       if: github.event_name == 'schedule'
       run: |
         NOW=$(date +%s)
         TRIGGER=${{ needs.setup.outputs.trigger_epoch }}
         BASE=${{ needs.setup.outputs.base_delay }}
-        STAGGER=$(( RANDOM % 120 + 60 ))
-        WAKE=$(( TRIGGER + BASE + STAGGER ))
-        SLEEP=$(( WAKE - NOW ))
-        if [ $SLEEP -gt 0 ]; then
-          echo "账号 ${{ matrix.account_index }} 等待 ${SLEEP}s 后执行..."
+        ELAPSED=$(( NOW - TRIGGER ))
+        if [ $ELAPSED -lt $BASE ]; then
+          SLEEP=$(( BASE - ELAPSED ))
+          echo "账号 ${{ matrix.account_index }} 基础窗口等待 ${SLEEP}s..."
           sleep $SLEEP
         else
-          echo "账号 ${{ matrix.account_index }} 执行窗口已过，立即执行"
+          echo "账号 ${{ matrix.account_index }} 基础窗口已过，立即执行"
         fi
 
     - name: 🛡️ 启动 sing-box 代理代理
@@ -139,6 +138,13 @@ jobs:
         # 启动虚拟显示器并执行脚本
         xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
           python reset_timer.py
+
+    - name: ⏸️ 间隔等待 (前一个结束 1~3 分钟后下一个开始)
+      if: github.event_name == 'schedule' && success()
+      run: |
+        STAGGER=$(( RANDOM % 120 + 60 ))
+        echo "⏸️ 续期完成，等待 ${STAGGER}s 后执行下一个账号..."
+        sleep $STAGGER
 
     - name: 📸 错误截图上传
       if: failure()
