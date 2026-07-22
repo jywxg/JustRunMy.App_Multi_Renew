@@ -269,16 +269,7 @@ def login(sb) -> bool:
     
     print("填写密码...")
     js_fill_input(sb, 'input[name="Password"]', PASSWORD)
-    time.sleep(0.3)
-    
-    print("勾选记住我...")
-    try:
-        remember_me = sb.find_element('input[name="RememberMe"]')
-        if not remember_me.is_selected():
-            remember_me.click()
-        time.sleep(0.3)
-    except Exception as e:
-        print(f"勾选记住我失败: {e}")
+    time.sleep(1)
 
     if sb.execute_script(_EXISTS_JS):
         if not handle_turnstile(sb):
@@ -342,12 +333,7 @@ def renew(sb) -> bool:
         try:
             print(f"第 {attempt} 次尝试查找应用元素...")
             
-            # 先等待页面加载
-            for wait_step in range(10):
-                time.sleep(1)
-                print(f"  等待页面加载... ({wait_step + 1}/10)")
-            
-            # 尝试多种选择器策略
+            # 尝试多种选择器策略，同时动态等待页面加载
             selectors = [
                 'h3.font-semibold',
                 'h3',
@@ -356,26 +342,33 @@ def renew(sb) -> bool:
                 'a[href*="/app"]'
             ]
             
-            for selector in selectors:
-                try:
-                    elements = sb.find_elements(selector)
-                    if elements:
-                        print(f"  找到 {len(elements)} 个匹配元素 (选择器: {selector})")
-                        # 尝试获取第一个有文本的元素
-                        for elem in elements:
-                            text = elem.text.strip()
-                            if text:
-                                DYNAMIC_APP_NAME = text
-                                print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
-                                elem.click()
-                                time.sleep(3)
-                                print(f"成功进入应用详情页: {sb.get_current_url()}")
-                                found = True
+            # 最多等待 10 秒，但一旦找到就立即停止
+            for wait_step in range(10):
+                time.sleep(1)
+                
+                for selector in selectors:
+                    try:
+                        elements = sb.find_elements(selector)
+                        if elements:
+                            print(f"  找到 {len(elements)} 个匹配元素 (选择器: {selector}) (等待 {wait_step + 1}s)")
+                            # 尝试获取第一个有文本的元素
+                            for elem in elements:
+                                text = elem.text.strip()
+                                if text:
+                                    DYNAMIC_APP_NAME = text
+                                    print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+                                    elem.click()
+                                    time.sleep(3)
+                                    print(f"成功进入应用详情页: {sb.get_current_url()}")
+                                    found = True
+                                    break
+                            if found:
                                 break
-                        if found:
-                            break
-                except Exception:
-                    continue
+                    except Exception:
+                        continue
+                
+                if found:
+                    break
             
             if found:
                 break
@@ -404,7 +397,7 @@ def renew(sb) -> bool:
     print("点击 Reset Timer 按钮...")
     try:
         sb.click('button:contains("Reset Timer")')
-        random_sleep(2, 4)
+        time.sleep(3)
     except Exception as e:
         print(f"找不到 Reset Timer 按钮: {e}")
         sb.save_screenshot("renew_reset_btn_not_found.png")
@@ -423,7 +416,7 @@ def renew(sb) -> bool:
     try:
         sb.click('button:contains("Just Reset")')
         print("提交续期请求，等待服务器处理...")
-        random_sleep(4, 6) 
+        time.sleep(5)
     except Exception as e:
         print(f"找不到 Just Reset 按钮: {e}")
         sb.save_screenshot("renew_just_reset_not_found.png")
