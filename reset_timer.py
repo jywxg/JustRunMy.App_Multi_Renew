@@ -277,7 +277,13 @@ def login(sb) -> bool:
 
     if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
         print("登录成功！")
-        time.sleep(5)  # 更长的等待时间，确保 cookie 保存
+        # 等待更长时间，确保 session/cookie 完全生效
+        time.sleep(8)
+        # 再次验证当前页面，确保已经成功登录
+        current_url_after_wait = sb.get_current_url()
+        if LOGIN_URL.lower() in current_url_after_wait.lower():
+            print("等待后仍在登录页面，可能登录未完全生效，继续等待...")
+            time.sleep(5)
         return True
         
     print("登录失败，页面没有跳转。")
