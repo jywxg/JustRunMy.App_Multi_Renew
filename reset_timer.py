@@ -210,29 +210,41 @@ def _click_turnstile(sb):
 
 def handle_turnstile(sb) -> bool:
     print("处理 Cloudflare Turnstile 验证...")
-    random_sleep(2, 3)
+    time.sleep(2)
     
-    try:
-        sb.uc_gui_click_captcha()
-        print("  Turnstile GUI 验证已处理")
-        random_sleep(3, 5)
+    if sb.execute_script(_SOLVED_JS):
+        print("  已静默通过")
         return True
-    except Exception as e:
-        print(f"  Turnstile GUI 处理异常: {e}")
-        # 降级到原来的方法
-        try:
+
+    for _ in range(3):
+        try: sb.execute_script(_EXPAND_JS)
+        except Exception: pass
+        time.sleep(0.5)
+
+    for attempt in range(6):
+        if sb.execute_script(_SOLVED_JS):
+            print(f"  Turnstile 通过（第 {attempt + 1} 次尝试）")
+            return True
+        try: sb.execute_script(_EXPAND_JS)
+        except Exception: pass
+        time.sleep(0.3)
+        
+        _click_turnstile(sb)
+        
+        for _ in range(8):
+            time.sleep(0.5)
             if sb.execute_script(_SOLVED_JS):
-                print("  已静默通过")
+                print(f"  Turnstile 通过（第 {attempt + 1} 次尝试）")
                 return True
-            return False
-        except Exception:
-            return False
+        print(f"  第 {attempt + 1} 次未通过，重试...")
+
+    print("  Turnstile 6 次均失败")
+    return False
 
 def login(sb) -> bool:
     print(f"打开登录页面: {LOGIN_URL}")
     sb.uc_open_with_reconnect(LOGIN_URL, reconnect_time=5)
-    sb.wait_for_ready_state_complete()
-    random_sleep(3, 5)
+    time.sleep(4)
 
     try:
         sb.wait_for_element('input[name="Email"]', timeout=15)
@@ -246,18 +258,18 @@ def login(sb) -> bool:
         for btn in sb.find_elements("button"):
             if "Accept" in (btn.text or ""):
                 btn.click()
-                random_sleep(0.5, 1)
+                time.sleep(0.5)
                 break
     except Exception:
         pass
 
     print(f"填写邮箱...")
-    human_type(sb, 'input[name="Email"]', EMAIL)
-    random_sleep(1, 2)
+    js_fill_input(sb, 'input[name="Email"]', EMAIL)
+    time.sleep(0.3)
     
     print("填写密码...")
-    human_type(sb, 'input[name="Password"]', PASSWORD)
-    random_sleep(1, 2)
+    js_fill_input(sb, 'input[name="Password"]', PASSWORD)
+    time.sleep(1)
 
     if sb.execute_script(_EXISTS_JS):
         if not handle_turnstile(sb):
@@ -271,16 +283,13 @@ def login(sb) -> bool:
     sb.press_keys('input[name="Password"]', '\n')
 
     print("等待登录跳转...")
-    for i in range(30):
-        random_sleep(0.8, 1.2)
+    for _ in range(12):
+        time.sleep(1)
         if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
             break
-        if i % 5 == 0:
-            print(f"  等待中... ({i+1}/30)")
 
     if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
         print("登录成功！")
-        random_sleep(2, 4)
         return True
         
     print("登录失败，页面没有跳转。")
@@ -295,45 +304,56 @@ def renew(sb) -> bool:
     
     print("进入控制面板: https://justrunmy.app/panel")
     sb.open("https://justrunmy.app/panel")
-    sb.wait_for_ready_state_complete()
-    random_sleep(3, 5)
-
+    time.sleep(5)
+    
+    # 先检查是否还在登录页面
+    current_url = sb.get_current_url()
+    print(f"当前页面: {current_url}")
+    if LOGIN_URL.lower() in current_url.lower():
+        print("检测到仍在登录页面，登录可能失效！")
+        sb.save_screenshot("login_still_on_page.png")
+        return False
+    
     print("自动读取应用名称...")
-    retry_count = 2
+    retry_count = 3
     found = False
     for attempt in range(1, retry_count + 1):
         try:
             print(f"第 {attempt} 次尝试查找应用元素...")
             
             # 先等待页面加载
-            random_sleep(3, 5)
+            for wait_step in range(10):
+                time.sleep(1)
+                print(f"  等待页面加载... ({wait_step + 1}/10)")
             
-            # 直接查找所有链接
-            print("  查找所有链接...")
-            all_links = sb.find_elements('a')
-            print(f"  找到 {len(all_links)} 个链接")
+            # 尝试多种选择器策略
+            selectors = [
+                'h3.font-semibold',
+                'h3',
+                '[class*="app"]',
+                '[class*="card"]',
+                'a[href*="/app"]'
+            ]
             
-            # 查找包含 /application/ 的链接
-            for idx, link in enumerate(all_links):
+            for selector in selectors:
                 try:
-                    href = link.get_attribute('href') or ''
-                    text = link.text.strip()
-                    if '/application/' in href:
-                        print(f"  找到应用链接 {idx}: {href}")
-                        print(f"  链接文本: '{text}'")
-                        
-                        # 直接访问这个链接
-                        sb.open(href)
-                        sb.wait_for_ready_state_complete()
-                        random_sleep(2, 4)
-                        
-                        DYNAMIC_APP_NAME = text if text else "Unknown App"
-                        print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
-                        print(f"成功进入应用详情页: {sb.get_current_url()}")
-                        found = True
-                        break
-                except Exception as e:
-                    print(f"  链接 {idx} 处理失败: {e}")
+                    elements = sb.find_elements(selector)
+                    if elements:
+                        print(f"  找到 {len(elements)} 个匹配元素 (选择器: {selector})")
+                        # 尝试获取第一个有文本的元素
+                        for elem in elements:
+                            text = elem.text.strip()
+                            if text:
+                                DYNAMIC_APP_NAME = text
+                                print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+                                elem.click()
+                                time.sleep(3)
+                                print(f"成功进入应用详情页: {sb.get_current_url()}")
+                                found = True
+                                break
+                        if found:
+                            break
+                except Exception:
                     continue
             
             if found:
@@ -341,22 +361,11 @@ def renew(sb) -> bool:
                 
         except Exception as e:
             print(f"第 {attempt} 次尝试异常: {e}")
-            import traceback
-            traceback.print_exc()
         
         if not found and attempt < retry_count:
             print(f"未找到应用，刷新页面重试...")
-            sb.save_screenshot(f"debug_attempt_{attempt}.png")
-            try:
-                page_source = sb.get_page_source()
-                with open(f"debug_html_{attempt}.html", "w", encoding="utf-8") as f:
-                    f.write(page_source)
-                print("  已保存页面源码用于调试")
-            except Exception as e:
-                print(f"  保存调试信息失败: {e}")
             sb.refresh()
-            sb.wait_for_ready_state_complete()
-            random_sleep(3, 5)
+            time.sleep(5)
     
     if not found:
         sb.save_screenshot("renew_app_not_found.png")
@@ -403,12 +412,10 @@ def renew(sb) -> bool:
     print("验证最终倒计时状态...")
     try:
         sb.refresh()
-        random_sleep(3, 5)
+        time.sleep(4)
         timer_text = sb.get_text('span.font-mono.text-xl')
         print(f"当前应用剩余时间: {timer_text}")
         
-        # 更灵活的验证逻辑：只要时间比初始的长或者包含天数就认为成功
-        # 或者直接认为续期操作执行成功就算成功
         print("续期任务圆满完成！")
         sb.save_screenshot("renew_success.png")
         send_tg_message("[OK]", "续期完成", timer_text)
@@ -433,30 +440,9 @@ def main():
         sb_kwargs["proxy"] = local_proxy
     
     with SB(**sb_kwargs) as sb:
-        driver = sb.driver
-        
-        # 添加反检测脚本
-        try:
-            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-                "source": """
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                    Object.defineProperty(navigator, 'plugins', {
-                        get: () => [1, 2, 3, 4, 5]
-                    });
-                    Object.defineProperty(navigator, 'languages', {
-                        get: () => ['zh-CN', 'zh', 'en']
-                    });
-                """
-            })
-        except Exception:
-            pass
-        
         print("浏览器已启动")
         try:
             sb.open("https://api.ipify.org/?format=json")
-            random_sleep(1, 2)
             print(f"当前出口 IP: {sb.get_text('body')}")
         except Exception:
             pass
