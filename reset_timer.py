@@ -295,27 +295,68 @@ def renew(sb) -> bool:
     time.sleep(5)
 
     print("自动读取应用名称...")
-    retry_count = 3
+    retry_count = 5
     found = False
     for attempt in range(1, retry_count + 1):
         try:
-            sb.wait_for_element('h3.font-semibold', timeout=15)
-            DYNAMIC_APP_NAME = sb.get_text('h3.font-semibold')
-            print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+            print(f"第 {attempt} 次尝试查找应用元素...")
             
-            sb.click('h3.font-semibold')
-            time.sleep(3)
-            print(f"成功进入应用详情页: {sb.get_current_url()}")
-            found = True
-            break
+            # 先等待页面加载
+            for wait_step in range(10):
+                time.sleep(1)
+                print(f"  等待页面加载... ({wait_step + 1}/10)")
+            
+            # 尝试多种选择器策略
+            selectors = [
+                'h3.font-semibold',
+                'h3',
+                '[class*="app"]',
+                '[class*="card"]',
+                'a[href*="/app"]'
+            ]
+            
+            for selector in selectors:
+                try:
+                    elements = sb.find_elements(selector)
+                    if elements:
+                        print(f"  找到 {len(elements)} 个匹配元素 (选择器: {selector})")
+                        # 尝试获取第一个有文本的元素
+                        for elem in elements:
+                            text = elem.text.strip()
+                            if text:
+                                DYNAMIC_APP_NAME = text
+                                print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+                                elem.click()
+                                time.sleep(3)
+                                print(f"成功进入应用详情页: {sb.get_current_url()}")
+                                found = True
+                                break
+                        if found:
+                            break
+                except Exception:
+                    continue
+            
+            if found:
+                break
+                
         except Exception as e:
-            if attempt < retry_count:
-                print(f"第 {attempt} 次尝试获取应用卡片失败，刷新页面重试...")
-                sb.refresh()
-                time.sleep(5)
+            print(f"第 {attempt} 次尝试异常: {e}")
+        
+        if not found and attempt < retry_count:
+            print(f"未找到应用，刷新页面重试...")
+            sb.refresh()
+            time.sleep(5)
     
     if not found:
         sb.save_screenshot("renew_app_not_found.png")
+        # 保存页面 HTML 用于调试
+        try:
+            page_html = sb.get_page_source()
+            with open("renew_page_source.html", "w", encoding="utf-8") as f:
+                f.write(page_html)
+            print("已保存页面 HTML 到 renew_page_source.html")
+        except Exception as e:
+            print(f"保存页面 HTML 失败: {e}")
         send_tg_message("[X]", "续期失败(找不到应用)", "未知")
         return False
 
