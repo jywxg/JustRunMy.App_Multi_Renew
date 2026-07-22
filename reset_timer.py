@@ -431,13 +431,15 @@ def main():
     print("   JustRunMy.app 自动登录与续期脚本")
     print("=" * 50)
     
-    proxy_url_env = os.environ.get("PROXY_URL", "").strip()
+    is_proxy = os.environ.get("IS_PROXY", "false").lower() == "true"
+    proxy_server = os.environ.get("PROXY_SERVER", "").strip()
     sb_kwargs = {"uc": True, "test": True, "headless": False}
     
-    if proxy_url_env:
-        local_proxy = "http://127.0.0.1:8080"
-        print(f"检测到代理配置，挂载本地通道: {local_proxy}")
-        sb_kwargs["proxy"] = local_proxy
+    if is_proxy and proxy_server:
+        print(f"检测到代理配置，挂载本地通道: {proxy_server}")
+        sb_kwargs["proxy"] = proxy_server
+    else:
+        print("未检测到代理配置，将使用直连模式")
     
     with SB(**sb_kwargs) as sb:
         print("浏览器已启动")
