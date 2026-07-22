@@ -299,24 +299,25 @@ def renew(sb) -> bool:
     random_sleep(3, 5)
 
     print("自动读取应用名称...")
-    retry_count = 5
+    retry_count = 3
     found = False
     for attempt in range(1, retry_count + 1):
         try:
             print(f"第 {attempt} 次尝试查找应用元素...")
             
             # 先等待页面加载
-            for wait_step in range(10):
+            for wait_step in range(5):
                 random_sleep(0.8, 1.2)
-                print(f"  等待页面加载... ({wait_step + 1}/10)")
+                print(f"  等待页面加载... ({wait_step + 1}/5)")
             
-            # 尝试多种选择器策略
+            # 尝试多种选择器策略 - 优先尝试更具体的
             selectors = [
                 'h3.font-semibold',
                 'h3',
+                'a[href*="/application/"]',
+                'a[href*="/app/"]',
                 '[class*="app"]',
-                '[class*="card"]',
-                'a[href*="/app"]'
+                '[class*="card"]'
             ]
             
             for selector in selectors:
@@ -325,19 +326,24 @@ def renew(sb) -> bool:
                     if elements:
                         print(f"  找到 {len(elements)} 个匹配元素 (选择器: {selector})")
                         # 尝试获取第一个有文本的元素
-                        for elem in elements:
-                            text = elem.text.strip()
-                            if text:
-                                DYNAMIC_APP_NAME = text
-                                print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
-                                elem.click()
-                                random_sleep(2, 4)
-                                print(f"成功进入应用详情页: {sb.get_current_url()}")
-                                found = True
-                                break
+                        for idx, elem in enumerate(elements):
+                            try:
+                                text = elem.text.strip()
+                                if text:
+                                    print(f"  元素 {idx} 文本: '{text}'")
+                                    DYNAMIC_APP_NAME = text
+                                    print(f"成功抓取到应用名称: {DYNAMIC_APP_NAME}")
+                                    elem.click()
+                                    random_sleep(2, 4)
+                                    print(f"成功进入应用详情页: {sb.get_current_url()}")
+                                    found = True
+                                    break
+                            except Exception as e:
+                                print(f"  元素 {idx} 处理失败: {e}")
                         if found:
                             break
-                except Exception:
+                except Exception as e:
+                    print(f"  选择器 {selector} 执行失败: {e}")
                     continue
             
             if found:
@@ -345,9 +351,18 @@ def renew(sb) -> bool:
                 
         except Exception as e:
             print(f"第 {attempt} 次尝试异常: {e}")
+            import traceback
+            traceback.print_exc()
         
         if not found and attempt < retry_count:
             print(f"未找到应用，刷新页面重试...")
+            # 保存调试信息
+            sb.save_screenshot(f"debug_attempt_{attempt}.png")
+            try:
+                with open(f"debug_html_{attempt}.html", "w", encoding="utf-8") as f:
+                    f.write(sb.get_page_source())
+            except Exception:
+                pass
             sb.refresh()
             sb.wait_for_ready_state_complete()
             random_sleep(3, 5)
