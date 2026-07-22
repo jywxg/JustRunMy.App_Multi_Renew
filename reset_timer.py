@@ -4,24 +4,11 @@
 import os
 import sys
 import time
-import random
 import requests
 from seleniumbase import SB
 
 LOGIN_URL = "https://justrunmy.app/id/Account/Login"
 DOMAIN    = "justrunmy.app"
-
-
-def random_sleep(min_sec=1, max_sec=3):
-    time.sleep(random.uniform(min_sec, max_sec))
-
-
-def human_type(sb, selector, text):
-    element = sb.find_element(selector)
-    element.clear()
-    for char in text:
-        element.send_keys(char)
-        time.sleep(random.uniform(0.05, 0.15))
 
 # ============================================================
 #  环境变量与全局变量
@@ -314,7 +301,6 @@ def renew(sb) -> bool:
         print("检测到需要重新登录...")
         print("尝试重新登录...")
         if not login(sb):
-            sb.save_screenshot("relogin_failed.png")
             return False
         print("重新登录成功，再次进入控制面板...")
         sb.open("https://justrunmy.app/panel")
@@ -323,7 +309,6 @@ def renew(sb) -> bool:
         print(f"当前页面: {current_url}")
         if LOGIN_URL.lower() in current_url.lower() or "/login" in current_url.lower():
             print("重新登录后仍然在登录页面，失败！")
-            sb.save_screenshot("login_still_on_page_after_relogin.png")
             return False
     
     print("自动读取应用名称...")
@@ -382,15 +367,6 @@ def renew(sb) -> bool:
             time.sleep(5)
     
     if not found:
-        sb.save_screenshot("renew_app_not_found.png")
-        # 保存页面 HTML 用于调试
-        try:
-            page_html = sb.get_page_source()
-            with open("renew_page_source.html", "w", encoding="utf-8") as f:
-                f.write(page_html)
-            print("已保存页面 HTML 到 renew_page_source.html")
-        except Exception as e:
-            print(f"保存页面 HTML 失败: {e}")
         send_tg_message("[X]", "续期失败(找不到应用)", "未知")
         return False
 
@@ -431,12 +407,10 @@ def renew(sb) -> bool:
         print(f"当前应用剩余时间: {timer_text}")
         
         print("续期任务圆满完成！")
-        sb.save_screenshot("renew_success.png")
         send_tg_message("[OK]", "续期完成", timer_text)
         return True
     except Exception as e:
         print(f"读取倒计时失败，但流程已执行完毕: {e}")
-        sb.save_screenshot("renew_timer_read_fail.png")
         send_tg_message("[!]", "读取剩余时间失败", "未知")
         return False
 
