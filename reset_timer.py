@@ -269,7 +269,16 @@ def login(sb) -> bool:
     
     print("填写密码...")
     js_fill_input(sb, 'input[name="Password"]', PASSWORD)
-    time.sleep(1)
+    time.sleep(0.3)
+    
+    print("勾选记住我...")
+    try:
+        remember_me = sb.find_element('input[name="RememberMe"]')
+        if not remember_me.is_selected():
+            remember_me.click()
+        time.sleep(0.3)
+    except Exception as e:
+        print(f"勾选记住我失败: {e}")
 
     if sb.execute_script(_EXISTS_JS):
         if not handle_turnstile(sb):
@@ -283,13 +292,14 @@ def login(sb) -> bool:
     sb.press_keys('input[name="Password"]', '\n')
 
     print("等待登录跳转...")
-    for _ in range(12):
+    for _ in range(20):
         time.sleep(1)
         if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
             break
 
     if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
         print("登录成功！")
+        time.sleep(5)  # 更长的等待时间，确保 cookie 保存
         return True
         
     print("登录失败，页面没有跳转。")
@@ -309,10 +319,21 @@ def renew(sb) -> bool:
     # 先检查是否还在登录页面
     current_url = sb.get_current_url()
     print(f"当前页面: {current_url}")
-    if LOGIN_URL.lower() in current_url.lower():
-        print("检测到仍在登录页面，登录可能失效！")
-        sb.save_screenshot("login_still_on_page.png")
-        return False
+    if LOGIN_URL.lower() in current_url.lower() or "/login" in current_url.lower():
+        print("检测到需要重新登录...")
+        print("尝试重新登录...")
+        if not login(sb):
+            sb.save_screenshot("relogin_failed.png")
+            return False
+        print("重新登录成功，再次进入控制面板...")
+        sb.open("https://justrunmy.app/panel")
+        time.sleep(5)
+        current_url = sb.get_current_url()
+        print(f"当前页面: {current_url}")
+        if LOGIN_URL.lower() in current_url.lower() or "/login" in current_url.lower():
+            print("重新登录后仍然在登录页面，失败！")
+            sb.save_screenshot("login_still_on_page_after_relogin.png")
+            return False
     
     print("自动读取应用名称...")
     retry_count = 3
