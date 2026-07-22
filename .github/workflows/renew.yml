@@ -111,7 +111,6 @@ jobs:
         ACC_PWD: ${{ secrets[format('PWD_{0}', matrix.account_index)] }}
         TG_TOKEN: ${{ secrets.TG_TOKEN }}
         TG_ID: ${{ secrets.TG_ID }}
-        PROXY_URL: ${{ secrets.PROXY_URL }}
       run: |
         echo "开始处理账号索引: ${{ matrix.account_index }}"
         # 启动虚拟显示器并执行脚本
@@ -135,3 +134,49 @@ jobs:
           *.html
           *.log
         retention-days: 7
+
+  cleanup:
+    needs: renew
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 下载代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: ⏱️ 更新运行记录
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        if [ ! -f time.txt ]; then
+          echo "首次生成时间：$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
+        else
+          echo "$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
+        fi
+        
+        git add time.txt
+        
+        if git diff --cached --quiet; then
+          echo "无变化，无需提交"
+        else
+          git commit -m "⏱️ 更新时间文件: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin HEAD:main || true
+        fi
+
+    - name: 🧹 清理旧的工作流运行记录
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+          runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
+          count=0
+          for run_id in $runs; do
+            count=$((count + 1))
+            if [ $count -gt 1 ]; then
+              echo "删除运行记录: $run_id"
+              gh run delete $run_id || true
+            fi
+          done
