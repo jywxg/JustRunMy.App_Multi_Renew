@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import requests
+import subprocess
 from seleniumbase import SB
 
 LOGIN_URL = "https://justrunmy.app/id/Account/Login"
@@ -263,11 +264,19 @@ def login(sb) -> bool:
             print("登录界面的 Turnstile 验证失败")
             sb.save_screenshot("login_turnstile_fail.png")
             return False
+        # 💡 增加 3 秒缓冲时间，确保 Cloudflare 的 Token 成功写入隐藏的 input
+        print("等待 Turnstile 令牌生效...")
+        time.sleep(3)
     else:
         print("未检测到 Turnstile")
 
-    print("敲击回车提交表单...")
-    sb.press_keys('input[name="Password"]', '\n')
+    print("尝试点击登录按钮提交表单...")
+    try:
+        # 💡 优先尝试点击真正的提交按钮，避免框架拦截回车事件
+        sb.click('button[type="submit"]')
+    except Exception:
+        print("未找到 submit 按钮，回退到敲击回车提交...")
+        sb.press_keys('input[name="Password"]', '\n')
 
     print("等待登录跳转...")
     for _ in range(20):
@@ -276,17 +285,21 @@ def login(sb) -> bool:
             break
 
     if sb.get_current_url().split('?')[0].lower() != LOGIN_URL.lower():
-        print("登录成功！")
+        print("检测到页面跳转，验证最终登录状态...")
         # 等待更长时间，确保 session/cookie 完全生效
         time.sleep(8)
         # 再次验证当前页面，确保已经成功登录
         current_url_after_wait = sb.get_current_url()
         if LOGIN_URL.lower() in current_url_after_wait.lower():
-            print("等待后仍在登录页面，可能登录未完全生效，继续等待...")
-            time.sleep(5)
+            # 💡 修复逻辑漏洞：如果又回到了登录页，必须返回 False 中断流程
+            print("❌ 等待后发现依然在登录页面，登录请求可能被服务器拒绝！")
+            sb.save_screenshot("login_reverted.png")
+            return False 
+            
+        print("✅ 登录成功！")
         return True
         
-    print("登录失败，页面没有跳转。")
+    print("❌ 登录失败，页面没有任何跳转。")
     sb.save_screenshot("login_failed.png")
     return False
 
