@@ -1,4 +1,4 @@
-#!/bin/bash
+script = """#!/bin/bash
 # setup_proxy.sh - 多节点轮询解析与 sing-box 启动 (最终对齐版)
 export LC_ALL=C
 set -e
@@ -284,52 +284,52 @@ for single_node in "${NODE_ARRAY[@]}"; do
   fi
 
   # 构建 outbound 对象
-  jq_outbound="{\"type\":\"$outbound_type\",\"tag\":\"proxy\",\"server\":\"$outbound_server\",\"server_port\":$outbound_port"
+  jq_outbound="{\\"type\\":\\"$outbound_type\\",\\"tag\\":\\"proxy\\",\\"server\\":\\"$outbound_server\\",\\"server_port\\":$outbound_port"
   case "$outbound_type" in
     vless)
-      jq_outbound="$jq_outbound,\"uuid\":\"$outbound_uuid\""
-      [ -n "$outbound_flow" ] && jq_outbound="$jq_outbound,\"flow\":\"$outbound_flow\""
-      if [ "$outbound_transport_type" != "tcp" ]; then jq_outbound="$jq_outbound,\"transport\":{\"type\":\"$outbound_transport_type\",\"path\":\"$outbound_path\",\"headers\":{\"Host\":\"$outbound_host\"}}"; fi
+      jq_outbound="$jq_outbound,\\"uuid\\":\\"$outbound_uuid\\""
+      [ -n "$outbound_flow" ] && jq_outbound="$jq_outbound,\\"flow\\":\\"$outbound_flow\\""
+      if [ "$outbound_transport_type" != "tcp" ]; then jq_outbound="$jq_outbound,\\"transport\\":{\\"type\\":\\"$outbound_transport_type\\",\\"path\\":\\"$outbound_path\\",\\"headers\\":{\\"Host\\":\\"$outbound_host\\"}}"; fi
       tls_enabled="false"; [ "$outbound_security" = "tls" ] || [ "$outbound_security" = "reality" ] && tls_enabled="true"
-      tls_json="{\"enabled\":$tls_enabled,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure,\"utls\":{\"enabled\":true,\"fingerprint\":\"$outbound_fingerprint\"}"
-      [ "$outbound_security" = "reality" ] && tls_json="$tls_json,\"reality\":{\"enabled\":true,\"public_key\":\"$outbound_reality_pbk\",\"short_id\":\"$outbound_reality_sid\"}"
+      tls_json="{\\"enabled\\":$tls_enabled,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure,\\"utls\\":{\\"enabled\\":true,\\"fingerprint\\":\\"$outbound_fingerprint\\"}"
+      [ "$outbound_security" = "reality" ] && tls_json="$tls_json,\\"reality\\":{\\"enabled\\":true,\\"public_key\\":\\"$outbound_reality_pbk\\",\\"short_id\\":\\"$outbound_reality_sid\\"}"
       tls_json="$tls_json}"
-      jq_outbound="$jq_outbound,\"tls\":$tls_json"
+      jq_outbound="$jq_outbound,\\"tls\\":$tls_json"
       ;;
     vmess)
-      jq_outbound="$jq_outbound,\"uuid\":\"$outbound_uuid\",\"security\":\"auto\""
-      jq_outbound="$jq_outbound,\"transport\":{\"type\":\"$outbound_transport_type\",\"path\":\"$outbound_path\",\"headers\":{\"Host\":\"$outbound_host\"}}"
+      jq_outbound="$jq_outbound,\\"uuid\\":\\"$outbound_uuid\\",\\"security\\":\\"auto\\""
+      jq_outbound="$jq_outbound,\\"transport\\":{\\"type\\":\\"$outbound_transport_type\\",\\"path\\":\\"$outbound_path\\",\\"headers\\":{\\"Host\\":\\"$outbound_host\\"}}"
       tls_enabled="false"; [ "$outbound_security" = "tls" ] && tls_enabled="true"
-      jq_outbound="$jq_outbound,\"tls\":{\"enabled\":$tls_enabled,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure,\"utls\":{\"enabled\":true,\"fingerprint\":\"$outbound_fingerprint\"}}"
+      jq_outbound="$jq_outbound,\\"tls\\":{\\"enabled\\":$tls_enabled,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure,\\"utls\\":{\\"enabled\\":true,\\"fingerprint\\":\\"$outbound_fingerprint\\"}}"
       ;;
     trojan)
-      jq_outbound="$jq_outbound,\"password\":\"$outbound_password\""
-      jq_outbound="$jq_outbound,\"transport\":{\"type\":\"$outbound_transport_type\",\"path\":\"$outbound_path\",\"headers\":{\"Host\":\"$outbound_host\"}}"
-      jq_outbound="$jq_outbound,\"tls\":{\"enabled\":true,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure,\"utls\":{\"enabled\":true,\"fingerprint\":\"$outbound_fingerprint\"}}"
+      jq_outbound="$jq_outbound,\\"password\\":\\"$outbound_password\\""
+      jq_outbound="$jq_outbound,\\"transport\\":{\\"type\\":\\"$outbound_transport_type\\",\\"path\\":\\"$outbound_path\\",\\"headers\\":{\\"Host\\":\\"$outbound_host\\"}}"
+      jq_outbound="$jq_outbound,\\"tls\\":{\\"enabled\\":true,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure,\\"utls\\":{\\"enabled\\":true,\\"fingerprint\\":\\"$outbound_fingerprint\\"}}"
       ;;
     hysteria2)
-      jq_outbound="$jq_outbound,\"up_mbps\":$outbound_up_mbps,\"down_mbps\":$outbound_down_mbps"
-      [ -n "$outbound_obfs_password" ] && jq_outbound="$jq_outbound,\"obfs\":{\"type\":\"salamander\",\"password\":\"$outbound_obfs_password\"}"
-      [ -n "$outbound_auth" ] && jq_outbound="$jq_outbound,\"password\":\"$outbound_auth\""
-      jq_outbound="$jq_outbound,\"tls\":{\"enabled\":true,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure}"
+      jq_outbound="$jq_outbound,\\"up_mbps\\":$outbound_up_mbps,\\"down_mbps\\":$outbound_down_mbps"
+      [ -n "$outbound_obfs_password" ] && jq_outbound="$jq_outbound,\\"obfs\\":{\\"type\\":\\"salamander\\",\\"password\\":\\"$outbound_obfs_password\\"}"
+      [ -n "$outbound_auth" ] && jq_outbound="$jq_outbound,\\"password\\":\\"$outbound_auth\\""
+      jq_outbound="$jq_outbound,\\"tls\\":{\\"enabled\\":true,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure}"
       ;;
     tuic)
-      jq_outbound="$jq_outbound,\"uuid\":\"$outbound_uuid\""
-      [ -n "$outbound_password2" ] && jq_outbound="$jq_outbound,\"password\":\"$outbound_password2\""
-      jq_outbound="$jq_outbound,\"congestion_control\":\"$outbound_congestion\",\"udp_over_stream\":$outbound_udp_over_stream,\"zero_rtt_handshake\":$outbound_zerortt"
-      tls_json="{\"enabled\":true,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure"
-      [ -n "$outbound_alpn" ] && tls_json="$tls_json,\"alpn\":[\"$outbound_alpn\"]"
+      jq_outbound="$jq_outbound,\\"uuid\\":\\"$outbound_uuid\\""
+      [ -n "$outbound_password2" ] && jq_outbound="$jq_outbound,\\"password\\":\\"$outbound_password2\\""
+      jq_outbound="$jq_outbound,\\"congestion_control\\":\\"$outbound_congestion\\",\\"udp_over_stream\\":$outbound_udp_over_stream,\\"zero_rtt_handshake\\":$outbound_zerortt"
+      tls_json="{\\"enabled\\":true,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure"
+      [ -n "$outbound_alpn" ] && tls_json="$tls_json,\\"alpn\\":[\\"$outbound_alpn\\"]"
       tls_json="$tls_json}"
-      jq_outbound="$jq_outbound,\"tls\":$tls_json"
+      jq_outbound="$jq_outbound,\\"tls\\":$tls_json"
       ;;
     anytls)
-      jq_outbound="$jq_outbound,\"password\":\"$outbound_password\""
-      jq_outbound="$jq_outbound,\"tls\":{\"enabled\":true,\"server_name\":\"$outbound_sni\",\"insecure\":$outbound_insecure,\"utls\":{\"enabled\":true,\"fingerprint\":\"$outbound_fingerprint\"}}"
+      jq_outbound="$jq_outbound,\\"password\\":\\"$outbound_password\\""
+      jq_outbound="$jq_outbound,\\"tls\\":{\\"enabled\\":true,\\"server_name\\":\\"$outbound_sni\\",\\"insecure\\":$outbound_insecure,\\"utls\\":{\\"enabled\\":true,\\"fingerprint\\":\\"$outbound_fingerprint\\"}}"
       ;;
     socks)
-      [ -n "$outbound_username" ] && jq_outbound="$jq_outbound,\"username\":\"$outbound_username\""
-      [ -n "$outbound_password2" ] && jq_outbound="$jq_outbound,\"password\":\"$outbound_password2\""
-      jq_outbound="$jq_outbound,\"version\":\"$outbound_version\""
+      [ -n "$outbound_username" ] && jq_outbound="$jq_outbound,\\"username\\":\\"$outbound_username\\""
+      [ -n "$outbound_password2" ] && jq_outbound="$jq_outbound,\\"password\\":\\"$outbound_password2\\""
+      jq_outbound="$jq_outbound,\\"version\\":\\"$outbound_version\\""
       ;;
   esac
   jq_outbound="$jq_outbound}"
@@ -372,7 +372,7 @@ EOF
     echo "[INFO] ✅ 节点 [$node_idx] 连接成功！ | 📍 IP: $ip_addr | 🌍 国家: $country"
     
     if [ -n "$GITHUB_ENV" ]; then
-      echo "USE_PROXY=true" >> "$GITHUB_ENV"
+      echo "IS_PROXY=true" >> "$GITHUB_ENV"
       echo "PROXY_SERVER=socks5://127.0.0.1:1080" >> "$GITHUB_ENV"
     fi
     exit 0
@@ -383,3 +383,12 @@ done
 
 echo "[ERROR] ❌ 所有配置的代理节点均测试失败！"
 exit 1
+"""
+
+# Replace USE_PROXY with IS_PROXY
+modified_script = script.replace('USE_PROXY=false', 'IS_PROXY=false').replace('USE_PROXY=true', 'IS_PROXY=true')
+
+with open("setup_proxy_modified.sh", "w") as f:
+    f.write(modified_script)
+
+print("Modification complete.")
