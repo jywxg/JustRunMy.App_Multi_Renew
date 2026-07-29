@@ -438,7 +438,7 @@ def main():
     print("   JustRunMy.app 自动登录与续期脚本")
     print("=" * 50)
     
-    is_proxy = os.environ.get("USE_PROXY", "false").lower() == "true"
+    is_proxy = os.environ.get("IS_PROXY", "false").lower() == "true"
     proxy_server = os.environ.get("PROXY_SERVER", "").strip()
     sb_kwargs = {"uc": True, "test": True, "headless": False}
     
