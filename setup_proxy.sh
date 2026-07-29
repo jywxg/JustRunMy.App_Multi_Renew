@@ -19,11 +19,30 @@ fi
 command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null && COMMAND="wget -qO" || { echo "Error: neither curl nor wget found." >&2; exit 1; }
 
 echo "[INFO] 获取 sing-box 最新版本..."
-latest_version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases" | jq -r '[.[] | select(.prerelease==false)][0].tag_name | sub("^v"; "")')
+latest_version=""
+
+# 重试 3 次机制
+for i in {1..3}; do
+  # 请求 latest 接口，直接获取 tag_name，并通过 // empty 和 || true 避免 set -e 导致退出
+  version_tag=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases/latest" | jq -r '.tag_name // empty' 2>/dev/null || true)
+  
+  # 校验是否成功获取到版本号（规避限流时返回 null 或空字符串）
+  if [ -n "$version_tag" ] && [ "$version_tag" != "null" ]; then
+    # 去除版本号前面的 "v" 字符
+    latest_version="${version_tag#v}"
+    break
+  fi
+  
+  echo "[WARN] 无法获取版本信息 (尝试 $i/3)，2秒后重试..."
+  sleep 2
+done
+
+# 默认版本回退机制
 if [ -z "$latest_version" ]; then
-  echo "[ERROR] 无法获取 sing-box 最新版本，将下载 v1.13.14"
-  export latest_version=1.13.14
+  echo "[ERROR] 无法获取 sing-box 最新版本，将默认下载 v1.13.14"
+  export latest_version="1.13.14"
 fi
+
 echo "[INFO] 最新稳定版本: v${latest_version}"
 
 ARCH_RAW=$(uname -m)
