@@ -391,11 +391,42 @@ def renew(sb) -> bool:
 
     print("点击 Reset Timer 按钮...")
     try:
-        sb.click('button:contains("Reset Timer")')
+        # 💡 1. 优先使用 title / aria-label 属性定位（不受窗口大小、文字隐藏及大小写限制）
+        # 💡 2. 备用小写 t 的文字选择器和 XPath 匹配
+        reset_selectors = [
+            'button[title="Reset timer"]',
+            'button[aria-label="Reset timer"]',
+            'button:contains("Reset timer")',
+            '//button[contains(@title, "Reset")]'
+        ]
+        
+        clicked = False
+        for sel in reset_selectors:
+            if sb.is_element_visible(sel):
+                print(f"  ✅ 锁定续期按钮 ({sel})，执行点击...")
+                sb.click(sel)
+                clicked = True
+                break
+        
+        if not clicked:
+            raise Exception("尝试了所有可用选择器，均未匹配到 Reset timer 按钮")
+            
         time.sleep(3)
     except Exception as e:
         print(f"找不到 Reset Timer 按钮: {e}")
         sb.save_screenshot("renew_reset_btn_not_found.png")
+        
+        # --- 💡 调试辅助：打印当前页面所有有效按钮和链接的文字，方便排查异动 ---
+        try:
+            print("  -> [调试信息] 当前页面可见的按钮/链接文字如下:")
+            for el in sb.find_elements("button, a"):
+                txt = el.text.strip()
+                if txt and len(txt) < 30:
+                    print(f"     - {el.tag_name.upper()}: '{txt}'")
+        except Exception:
+            pass
+        # ---------------------------------------------------------------------
+        
         send_tg_message("[X]", "续期失败(找不到按钮)", "未知")
         return False
 
@@ -422,7 +453,8 @@ def renew(sb) -> bool:
     try:
         sb.refresh()
         time.sleep(4)
-        timer_text = sb.get_text('span.font-mono.text-xl')
+        # 💡 使用兼容性更好的 font-mono 选择器，避免移动端断点缺失 text-xl 类名
+        timer_text = sb.get_text('span.font-mono')
         print(f"当前应用剩余时间: {timer_text}")
         
         print("续期任务圆满完成！")
